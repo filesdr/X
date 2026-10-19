@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<title>tikApp — Sensual style feed</title>
+<style>
+  :root { --pink:#fe2c55; --cyan:#25f4ee; --panel:rgba(18,18,18,.82); }
+  * { box-sizing:border-box; }
+  html, body { margin:0; width:100%; height:100%; background:#000; color:#fff; font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; overflow:hidden; }
+  button { font:inherit; color:inherit; border:0; cursor:pointer; -webkit-tap-highlight-color:transparent; }
+  .app { position:relative; width:100%; height:100dvh; background:#000; overflow:hidden; }
+  .feed { height:100%; width:100%; overflow-y:auto; scroll-snap-type:y mandatory; scrollbar-width:none; overscroll-behavior-y:contain; }
+  .feed::-webkit-scrollbar { display:none; }
+  .video-card { position:relative; width:100%; height:100dvh; min-height:100%; scroll-snap-align:start; scroll-snap-stop:always; overflow:hidden; background:#111; isolation:isolate; }
+  .video-card video { width:100%; height:100%; object-fit:cover; display:block; background:#111; }
+  .video-card::after { content:""; position:absolute; inset:0; z-index:1; pointer-events:none; background:linear-gradient(180deg,rgba(0,0,0,.42) 0%,transparent 19%,transparent 54%,rgba(0,0,0,.72) 100%); }
+  .topbar { position:absolute; z-index:5; top:0; left:0; right:0; display:flex; justify-content:center; align-items:center; gap:22px; padding:calc(env(safe-area-inset-top) + 14px) 14px 12px; font-size:15px; font-weight:700; text-shadow:0 1px 5px #000; pointer-events:none; }
+  .topbar span { opacity:.72; }
+  .topbar .active { opacity:1; position:relative; }
+  .topbar .active::after { content:""; height:3px; width:22px; border-radius:4px; background:#fff; position:absolute; left:50%; bottom:-8px; transform:translateX(-50%); }
+  .brand { position:absolute; z-index:6; top:calc(env(safe-area-inset-top) + 13px); left:14px; font-size:19px; font-weight:900; letter-spacing:-.8px; text-shadow:0 2px 8px #000; pointer-events:none; }
+  .brand b { color:var(--cyan); } .brand i { color:var(--pink); font-style:normal; }
+  .right-actions { position:absolute; z-index:4; right:10px; bottom:calc(84px + env(safe-area-inset-bottom)); display:flex; flex-direction:column; align-items:center; gap:17px; width:54px; }
+  .action { display:flex; flex-direction:column; align-items:center; gap:4px; background:transparent; padding:0; font-size:11px; font-weight:700; text-shadow:0 1px 4px #000; min-width:48px; }
+  .icon-wrap { position:relative; display:grid; place-items:center; width:45px; height:45px; filter:drop-shadow(0 2px 3px rgba(0,0,0,.45)); }
+  .icon-wrap svg { width:32px; height:32px; fill:#fff; stroke:#fff; stroke-width:1.7; }
+  .action.liked .icon-wrap svg { fill:var(--pink); stroke:var(--pink); animation:pop .22s ease-out; }
+  @keyframes pop { 50% { transform:scale(1.25); } }
+  .avatar { width:44px; height:44px; border-radius:50%; border:2px solid white; display:grid; place-items:center; font-weight:900; font-size:20px; background:linear-gradient(135deg,#6534ac,#ed3f78,#ffb14e); box-shadow:0 2px 6px #0008; position:relative; }
+  .follow-dot { position:absolute; bottom:-7px; left:50%; transform:translateX(-50%); background:var(--pink); border-radius:50%; width:19px; height:19px; display:grid; place-items:center; font-size:15px; line-height:1; }
+  .follow-dot.following { background:#fff; color:var(--pink); font-size:12px; }
+  .caption { position:absolute; z-index:3; left:14px; right:76px; bottom:calc(86px + env(safe-area-inset-bottom)); text-shadow:0 1px 5px #000; }
+  .creator { font-weight:800; font-size:15px; margin-bottom:8px; }
+  .description { font-size:14px; line-height:1.35; margin-bottom:9px; white-space:pre-line; }
+  .music { font-size:12px; display:flex; align-items:center; gap:7px; overflow:hidden; white-space:nowrap; }
+  .music .note { font-size:17px; }
+  .music span:last-child { overflow:hidden; text-overflow:ellipsis; }
+  .disc { width:37px; height:37px; border-radius:50%; border:6px solid #222; background:radial-gradient(circle,#eee 0 12%,#222 13% 25%,#777 26% 35%,#111 36%); box-shadow:0 1px 8px #000; animation:spin 4s linear infinite; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  .paused { position:absolute; z-index:3; top:50%; left:50%; transform:translate(-50%,-50%); background:#0005; border-radius:50%; width:70px; height:70px; display:grid; place-items:center; opacity:0; transition:opacity .15s; pointer-events:none; }
+  .paused svg { width:35px; fill:white; }
+  .video-card.is-paused .paused { opacity:1; }
+  .progress { position:absolute; z-index:7; bottom:calc(62px + env(safe-area-inset-bottom)); left:0; width:100%; height:2px; background:#ffffff45; }
+  .progress-fill { height:100%; width:0; background:#fff; }
+  /* Optional banner slot: paste your Adsterra banner unit code into #banner-ad-slot. */
+  #banner-ad-slot { position:absolute; z-index:7; left:0; right:0; bottom:calc(57px + env(safe-area-inset-bottom)); min-height:50px; display:flex; justify-content:center; align-items:center; background:rgba(0,0,0,.82); }
+  #banner-ad-slot:empty { display:none; }
+  #banner-ad-slot iframe, #banner-ad-slot img { max-width:100%; }
+  .bottom-nav { position:absolute; z-index:8; bottom:0; left:0; right:0; height:calc(57px + env(safe-area-inset-bottom)); padding:7px 12px calc(7px + env(safe-area-inset-bottom)); background:#050505; display:flex; align-items:center; justify-content:space-around; border-top:1px solid #ffffff18; }
+  .nav-item { background:transparent; color:#bdbdbd; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; min-width:44px; font-size:10px; }
+  .nav-item svg { width:23px; height:23px; fill:currentColor; stroke:currentColor; stroke-width:1.5; }
+  .nav-item.active { color:#fff; }
+  .nav-item.create { width:43px; height:29px; min-width:43px; border-radius:8px; color:#000; background:linear-gradient(90deg,var(--cyan) 0 15%,#fff 15% 85%,var(--pink) 85%); font-size:27px; font-weight:500; line-height:25px; }
+  .sound-toggle { position:absolute; z-index:6; right:13px; top:calc(env(safe-area-inset-top) + 55px); background:#0006; border-radius:50%; width:34px; height:34px; display:grid; place-items:center; }
+  .sound-toggle svg { width:19px; height:19px; fill:#fff; }
+  .toast { position:absolute; z-index:20; left:50%; bottom:calc(90px + env(safe-area-inset-bottom)); transform:translate(-50%,12px); opacity:0; background:#222; border:1px solid #ffffff22; padding:10px 15px; border-radius:22px; font-size:13px; pointer-events:none; transition:.2s; white-space:nowrap; }
+  .toast.show { opacity:1; transform:translate(-50%,0); }
+  .comment-sheet { display:none; position:absolute; z-index:15; inset:0; background:#0007; align-items:flex-end; }
+  .comment-sheet.open { display:flex; }
+  .sheet { width:100%; max-height:72%; background:#f7f7f7; color:#161616; border-radius:18px 18px 0 0; padding:15px 15px calc(15px + env(safe-area-inset-bottom)); display:flex; flex-direction:column; }
+  .sheet-head { display:flex; justify-content:space-between; align-items:center; font-weight:800; padding-bottom:12px; border-bottom:1px solid #ddd; }
+  .sheet-head button { background:transparent; color:#333; font-size:24px; }
+  .comment-list { flex:1; min-height:110px; overflow:auto; padding:12px 0; font-size:13px; }
+  .comment-row { margin:10px 0; color:#333; }
+  .comment-row b { display:block; font-size:12px; color:#777; margin-bottom:3px; }
+  .comment-form { display:flex; gap:8px; padding-top:10px; border-top:1px solid #ddd; }
+  .comment-form input { flex:1; min-width:0; border:0; background:#e9e9e9; color:#111; border-radius:22px; padding:12px 14px; outline:none; }
+  .comment-form button { background:var(--pink); color:#fff; border-radius:22px; padding:0 16px; font-weight:800; }
+  @media (min-width:600px) {
+    .app { max-width:430px; height: min(100dvh, 900px); margin:0 auto; border-left:1px solid #222; border-right:1px solid #222; }
+    body { background:#151515; display:flex; justify-content:center; align-items:center; }
+    .video-card { height:100%; }
+  }
+</style>
+  <!-- POPCASH: Paste your unique PopCash publisher pop-under script here, before </head>.
+       Use the code supplied by your PopCash dashboard; do not use a script copied from another site. -->
+</head>
+<body>
+<div class="app">
+  <div class="brand">tik<b>A</b><i>pp</i></div>
+  <div class="topbar"><span>Following</span><span class="active">For You</span></div>
+  <div class="feed" id="feed" aria-label="Video feed"></div>
+  <!-- ADSTERRA BANNER: Paste your unique Adsterra banner unit code inside this div.
+       Leave empty if testing Social Bar only. -->
+  <div id="banner-ad-slot"></div>
+  <div class="bottom-nav">
+    <button class="nav-item active" data-nav="Home" aria-label="Home"><svg viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5v9a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/></svg><span>Home</span></button>
+    <button class="nav-item" data-nav="Discover" aria-label="Discover"><svg viewBox="0 0 24 24"><circle cx="10.8" cy="10.8" r="7.3" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="m16.3 16.3 4.2 4.2" fill="none" stroke="currentColor" stroke-width="2.2"/></svg><span>Discover</span></button>
+    <button class="nav-item create" data-nav="Create" aria-label="Create">+</button>
+    <button class="nav-item" data-nav="Inbox" aria-label="Inbox"><svg viewBox="0 0 24 24"><path d="M3 5h18v14H3z"/><path d="M3 13h5l2 3h4l2-3h5" fill="none" stroke="#050505" stroke-width="1.8"/></svg><span>Inbox</span></button>
+    <button class="nav-item" data-nav="Profile" aria-label="Profile"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c.5-4.5 3.3-7 8-7s7.5 2.5 8 7z"/></svg><span>Profile</span></button>
+  </div>
+  <div class="toast" id="toast"></div>
+  <div class="comment-sheet" id="commentSheet">
+    <div class="sheet">
+      <div class="sheet-head"><span id="commentTitle">Comments</span><button id="closeComments" aria-label="Close comments">×</button></div>
+      <div class="comment-list" id="commentList"></div>
+      <form class="comment-form" id="commentForm"><input id="commentInput" placeholder="Add comment…" maxlength="180" autocomplete="off"><button type="submit">Post</button></form>
+    </div>
+  </div>
+</div>
+<script>
+const videos = [
+  {src:"https://videos.pexels.com/video-files/6353462/6353462-hd_1080_1920_30fps.mp4", user:"@softglamour", name:"Soft Glamour", desc:"A little mirror moment ✨ Elegant, confident, and unapologetically you. #glamour #sensualstyle", music:"Original sound · Soft Glamour", likes:24800, comments:312, shares:94, avatar:"S", source:"https://www.pexels.com/video/a-woman-in-lingerie-is-sitting-in-the-bathroom-6353462/"},
+  {src:"https://videos.pexels.com/video-files/9784344/9784344-uhd_2160_4096_25fps.mp4", user:"@nightwear.diary", name:"Nightwear Diary", desc:"Soft lighting, satin, and a little confidence 💫 #nightwear #style", music:"Midnight mood · Nightwear Diary", likes:18700, comments:208, shares:151, avatar:"N", source:"https://www.pexels.com/video/woman-sitting-putting-on-lingerie-9784344/"},
+  {src:"https://videos.pexels.com/video-files/8732389/8732389-uhd_4096_2160_25fps.mp4", user:"@studio.glow", name:"Studio Glow", desc:"Confidence looks good on everyone 🤍 #lingerie #bodyconfidence", music:"Original sound · Studio Glow", likes:56200, comments:891, shares:427, avatar:"G", source:"https://www.pexels.com/video/women-wearing-lingerie-8732389/"},
+  {src:"https://videos.pexels.com/video-files/8746843/8746843-uhd_2160_4096_25fps.mp4", user:"@silk.and.style", name:"Silk & Style", desc:"A graceful look with a bold touch ❤️ #fashion #sensualstyle", music:"Velvet mood · Silk & Style", likes:9200, comments:147, shares:63, avatar:"V", source:"https://www.pexels.com/video/female-model-looking-at-camera-8746843/"},
+  {src:"https://videos.pexels.com/video-files/9784350/9784350-uhd_4096_2160_25fps.mp4", user:"@glamour.edit", name:"Glamour Edit", desc:"Classic glamour and a little mystery ✨ #glamour #fashion", music:"Late night edit · Glamour Edit", likes:103500, comments:2401, shares:1702, avatar:"E", source:"https://www.pexels.com/video/woman-in-lingerie-smiling-9784350/"}
+];
+const icons = {
+ heart:'<svg viewBox="0 0 24 24"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8l1.1 1.1L12 21l7.8-7.5 1.1-1.1a5.5 5.5 0 0 0-.1-7.8z"/></svg>',
+ comment:'<svg viewBox="0 0 24 24"><path d="M21 11.5a8.5 8.5 0 0 1-12.7 7.4L3 20l1.2-4.6A8.5 8.5 0 1 1 21 11.5Z" fill="none" stroke="white" stroke-width="2"/></svg>',
+ share:'<svg viewBox="0 0 24 24"><path d="M14 3 22 10l-8 7v-4C8 13 5 15 2 20c1-8 5-12 12-12z"/></svg>',
+ bookmark:'<svg viewBox="0 0 24 24"><path d="M6 3h12v18l-6-4-6 4z"/></svg>',
+ volume:'<svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 4V5L7 9z"/><path d="M15 9a5 5 0 0 1 0 6M17.5 6a9 9 0 0 1 0 12" fill="none" stroke="white" stroke-width="2"/></svg>',
+ mute:'<svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 4V5L7 9z"/><path d="m16 9 5 6m0-6-5 6" fill="none" stroke="white" stroke-width="2"/></svg>',
+ play:'<svg viewBox="0 0 24 24"><path d="M7 3v18l14-9z"/></svg>'
+};
+const feed = document.getElementById('feed');
+const fmt = n => n >= 1000000 ? (n/1000000).toFixed(1).replace(/\.0$/,'')+'M' : n >= 1000 ? (n/1000).toFixed(1).replace(/\.0$/,'')+'K' : String(n);
+const state = videos.map(v => ({liked:false, saved:false, following:false, muted:true, playing:false, likes:v.likes, comments:[]}));
+videos.forEach((v,i) => {
+ const card = document.createElement('section');
+ card.className = 'video-card'; card.dataset.index = i;
+ card.innerHTML = `
+   <video src="${v.src}" playsinline webkit-playsinline loop muted preload="${i===0?'auto':'none'}" aria-label="Video ${i+1}"></video>
+   <div class="paused">${icons.play}</div>
+   <button class="sound-toggle" data-action="sound" aria-label="Toggle sound">${icons.mute}</button>
+   <div class="right-actions">
+     <button class="action profile-action" data-action="profile" aria-label="Follow ${v.user}"><span class="avatar">${v.avatar}<span class="follow-dot">+</span></span></button>
+     <button class="action like-action" data-action="like" aria-label="Like video"><span class="icon-wrap">${icons.heart}</span><span class="like-count">${fmt(v.likes)}</span></button>
+     <button class="action" data-action="comment" aria-label="Comments"><span class="icon-wrap">${icons.comment}</span><span>${fmt(v.comments)}</span></button>
+     <button class="action save-action" data-action="save" aria-label="Save video"><span class="icon-wrap">${icons.bookmark}</span><span>Save</span></button>
+     <button class="action" data-action="share" aria-label="Share video"><span class="icon-wrap">${icons.share}</span><span class="share-count">${fmt(v.shares)}</span></button>
+     <div class="disc" aria-hidden="true"></div>
+   </div>
+   <div class="caption"><div class="creator">${v.user}</div><div class="description">${v.desc}</div><div class="music"><span class="note">♫</span><span>${v.music}</span></div></div>
+   <div class="progress"><div class="progress-fill"></div></div>`;
+ feed.appendChild(card);
+ const video = card.querySelector('video');
+ video.addEventListener('timeupdate', () => { const fill=card.querySelector('.progress-fill'); if(video.duration) fill.style.width=(video.currentTime/video.duration*100)+'%'; });
+ video.addEventListener('error', () => { /* A remote demo clip may be unavailable on some networks. */ });
+});
+function showToast(msg) {
+ const toast=document.getElementById('toast'); toast.textContent=msg; toast.classList.add('show');
+ clearTimeout(showToast.timer); showToast.timer=setTimeout(()=>toast.classList.remove('show'),1800);
+}
+function playActive(card) {
+ document.querySelectorAll('.video-card').forEach(other => {
+   const vid=other.querySelector('video');
+   if(other===card) { vid.play().then(()=>other.classList.remove('is-paused')).catch(()=>{}); state[+other.dataset.index].playing=true; }
+   else { vid.pause(); state[+other.dataset.index].playing=false; }
+ });
+}
+const observer = new IntersectionObserver(entries => {
+ entries.forEach(entry => { if(entry.isIntersecting && entry.intersectionRatio>=.65) playActive(entry.target); });
+}, {root:feed, threshold:[.65,.8]});
+document.querySelectorAll('.video-card').forEach(c=>observer.observe(c));
+document.querySelectorAll('.video-card').forEach(card => {
+ const video=card.querySelector('video');
+ video.addEventListener('click',()=> {
+   if(video.paused) { video.play().catch(()=>{}); card.classList.remove('is-paused'); state[+card.dataset.index].playing=true; }
+   else { video.pause(); card.classList.add('is-paused'); state[+card.dataset.index].playing=false; }
+ });
+ card.addEventListener('click', async e => {
+   const btn=e.target.closest('[data-action]'); if(!btn) return;
+   e.preventDefault(); e.stopPropagation();
+   const i=+card.dataset.index, s=state[i], v=videos[i], action=btn.dataset.action;
+   if(action==='like') {
+     s.liked=!s.liked; s.likes+=s.liked?1:-1; btn.classList.toggle('liked',s.liked); card.querySelector('.like-count').textContent=fmt(s.likes);
+   } else if(action==='profile') {
+     s.following=!s.following; const dot=btn.querySelector('.follow-dot'); dot.textContent=s.following?'✓':'+'; dot.classList.toggle('following',s.following); showToast(s.following?'Following '+v.user:'Unfollowed '+v.user);
+   } else if(action==='save') {
+     s.saved=!s.saved; btn.style.color=s.saved?'#25f4ee':'#fff'; btn.querySelector('span:last-child').textContent=s.saved?'Saved':'Save'; showToast(s.saved?'Video saved':'Removed from saved');
+   } else if(action==='sound') {
+     s.muted=!s.muted; document.querySelectorAll('.video-card video').forEach((vid,j)=>{vid.muted=(j!==i)||s.muted; if(j!==i)state[j].muted=true;});
+     btn.innerHTML=s.muted?icons.mute:icons.volume; showToast(s.muted?'Sound off':'Sound on');
+   } else if(action==='comment') openComments(i);
+   else if(action==='share') {
+     const shareData={title:'tikApp video',text:v.desc+' — '+v.user,url:location.href+'#video-'+(i+1)};
+     try { if(navigator.share) { await navigator.share(shareData); } else if(navigator.clipboard) { await navigator.clipboard.writeText(shareData.url); showToast('Video link copied'); } else { showToast('Use your browser menu to share'); } } catch(err) {}
+   }
+ });
+});
+function openComments(i) {
+ const sheet=document.getElementById('commentSheet'), list=document.getElementById('commentList');
+ sheet.dataset.index=i; document.getElementById('commentTitle').textContent=fmt(videos[i].comments+state[i].comments.length)+' comments';
+ list.innerHTML='';
+ const sample=[['@joyce','Love this 😍'],['@mike','This came up at the right time!'],['@ade','More videos like this please 🙌']];
+ [...sample,...state[i].comments].forEach(c=>{const row=document.createElement('div');row.className='comment-row';row.innerHTML='<b></b><span></span>';row.querySelector('b').textContent=c[0];row.querySelector('span').textContent=c[1];list.appendChild(row);});
+ sheet.classList.add('open'); document.getElementById('commentInput').focus();
+}
+document.getElementById('closeComments').addEventListener('click',()=>document.getElementById('commentSheet').classList.remove('open'));
+document.getElementById('commentSheet').addEventListener('click',e=>{if(e.target.id==='commentSheet')e.currentTarget.classList.remove('open');});
+document.getElementById('commentForm').addEventListener('submit',e=>{
+ e.preventDefault(); const input=document.getElementById('commentInput'), text=input.value.trim(); if(!text)return;
+ const i=+document.getElementById('commentSheet').dataset.index; state[i].comments.push(['@you',text]); input.value=''; openComments(i); showToast('Comment posted');
+});
+document.querySelectorAll('[data-nav]').forEach(btn=>btn.addEventListener('click',()=>{
+ const name=btn.dataset.nav;
+ if(name==='Home') { feed.scrollTo({top:0,behavior:'smooth'}); return; }
+ if(name==='Create') showToast('Create video — connect your upload flow here');
+ else if(name==='Discover') showToast('Discover is ready to customize');
+ else if(name==='Inbox') showToast('Your inbox will appear here');
+ else if(name==='Profile') showToast('Your profile will appear here');
+}));
+</script>
+<!-- ADSTERRA SOCIAL BAR: Paste the full Social Bar script supplied in your Adsterra publisher dashboard here.
+     Adsterra's publisher guide says to place Social Bar code before </body>. -->
+</body>
+</html>
