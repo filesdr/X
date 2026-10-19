@@ -4,7 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#000000">
-<title>tikApp — Sensual style feed</title>
+<link rel="preconnect" href="https://www.pornhub.com" crossorigin>
+<link rel="dns-prefetch" href="//www.pornhub.com">
+<link rel="preconnect" href="https://videos.pexels.com" crossorigin>
+<link rel="dns-prefetch" href="//videos.pexels.com">
+<title>tikApp — Video Feed</title>
 <style>
   :root { --pink:#fe2c55; --cyan:#25f4ee; --panel:rgba(18,18,18,.82); }
   * { box-sizing:border-box; }
@@ -14,7 +18,11 @@
   .feed { height:100%; width:100%; overflow-y:auto; scroll-snap-type:y mandatory; scrollbar-width:none; overscroll-behavior-y:contain; }
   .feed::-webkit-scrollbar { display:none; }
   .video-card { position:relative; width:100%; height:100dvh; min-height:100%; scroll-snap-align:start; scroll-snap-stop:always; overflow:hidden; background:#111; isolation:isolate; }
-  .video-card video { width:100%; height:100%; object-fit:cover; display:block; background:#111; }
+  .video-card video, .video-card iframe { width:100%; height:100%; display:block; border:0; background:#111; }
+  .video-card video { object-fit:cover; }
+  .video-card iframe { position:absolute; inset:0; }
+  .video-card.embed-card::after { pointer-events:none; }
+  .video-card.embed-card .sound-toggle { display:none; }
   .video-card::after { content:""; position:absolute; inset:0; z-index:1; pointer-events:none; background:linear-gradient(180deg,rgba(0,0,0,.42) 0%,transparent 19%,transparent 54%,rgba(0,0,0,.72) 100%); }
   .topbar { position:absolute; z-index:5; top:0; left:0; right:0; display:flex; justify-content:center; align-items:center; gap:22px; padding:calc(env(safe-area-inset-top) + 14px) 14px 12px; font-size:15px; font-weight:700; text-shadow:0 1px 5px #000; pointer-events:none; }
   .topbar span { opacity:.72; }
@@ -74,6 +82,7 @@
     .video-card { height:100%; }
   }
 </style>
+  <!-- First card uses a third-party iframe with autoplay requested. Browser/provider policies may still require a tap. -->
   <!-- POPCASH: Paste your unique PopCash publisher pop-under script here, before </head>.
        Use the code supplied by your PopCash dashboard; do not use a script copied from another site. -->
 </head>
@@ -103,7 +112,7 @@
 </div>
 <script>
 const videos = [
-  {src:"https://videos.pexels.com/video-files/6353462/6353462-hd_1080_1920_30fps.mp4", user:"@softglamour", name:"Soft Glamour", desc:"A little mirror moment ✨ Elegant, confident, and unapologetically you. #glamour #sensualstyle", music:"Original sound · Soft Glamour", likes:24800, comments:312, shares:94, avatar:"S", source:"https://www.pexels.com/video/a-woman-in-lingerie-is-sitting-in-the-bathroom-6353462/"},
+  {type:"embed", embedUrl:"https://www.pornhub.com/embed/6a0fe7ab62e17?autoplay=1", src:"", user:"@featuredmodel", name:"Featured Model", desc:"Featured model video · 18+ only", music:"Featured video", likes:24800, comments:312, shares:94, avatar:"M", source:"https://www.pornhub.com/embed/6a0fe7ab62e17"},
   {src:"https://videos.pexels.com/video-files/9784344/9784344-uhd_2160_4096_25fps.mp4", user:"@nightwear.diary", name:"Nightwear Diary", desc:"Soft lighting, satin, and a little confidence 💫 #nightwear #style", music:"Midnight mood · Nightwear Diary", likes:18700, comments:208, shares:151, avatar:"N", source:"https://www.pexels.com/video/woman-sitting-putting-on-lingerie-9784344/"},
   {src:"https://videos.pexels.com/video-files/8732389/8732389-uhd_4096_2160_25fps.mp4", user:"@studio.glow", name:"Studio Glow", desc:"Confidence looks good on everyone 🤍 #lingerie #bodyconfidence", music:"Original sound · Studio Glow", likes:56200, comments:891, shares:427, avatar:"G", source:"https://www.pexels.com/video/women-wearing-lingerie-8732389/"},
   {src:"https://videos.pexels.com/video-files/8746843/8746843-uhd_2160_4096_25fps.mp4", user:"@silk.and.style", name:"Silk & Style", desc:"A graceful look with a bold touch ❤️ #fashion #sensualstyle", music:"Velvet mood · Silk & Style", likes:9200, comments:147, shares:63, avatar:"V", source:"https://www.pexels.com/video/female-model-looking-at-camera-8746843/"},
@@ -124,8 +133,12 @@ const state = videos.map(v => ({liked:false, saved:false, following:false, muted
 videos.forEach((v,i) => {
  const card = document.createElement('section');
  card.className = 'video-card'; card.dataset.index = i;
+ card.classList.toggle('embed-card', v.type === 'embed');
+ const playerMarkup = v.type === 'embed'
+   ? `<iframe src="${v.embedUrl}" title="Featured adult model video (18+)" loading="eager" fetchpriority="high" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>`
+   : `<video src="${v.src}" playsinline webkit-playsinline loop muted preload="none" aria-label="Video ${i+1}" poster=""></video>`;
  card.innerHTML = `
-   <video src="${v.src}" playsinline webkit-playsinline loop muted preload="${i===0?'auto':'none'}" aria-label="Video ${i+1}"></video>
+   ${playerMarkup}
    <div class="paused">${icons.play}</div>
    <button class="sound-toggle" data-action="sound" aria-label="Toggle sound">${icons.mute}</button>
    <div class="right-actions">
@@ -140,8 +153,10 @@ videos.forEach((v,i) => {
    <div class="progress"><div class="progress-fill"></div></div>`;
  feed.appendChild(card);
  const video = card.querySelector('video');
- video.addEventListener('timeupdate', () => { const fill=card.querySelector('.progress-fill'); if(video.duration) fill.style.width=(video.currentTime/video.duration*100)+'%'; });
- video.addEventListener('error', () => { /* A remote demo clip may be unavailable on some networks. */ });
+ if (video) {
+   video.addEventListener('timeupdate', () => { const fill=card.querySelector('.progress-fill'); if(video.duration) fill.style.width=(video.currentTime/video.duration*100)+'%'; });
+   video.addEventListener('error', () => { /* A remote demo clip may be unavailable on some networks. */ });
+ }
 });
 function showToast(msg) {
  const toast=document.getElementById('toast'); toast.textContent=msg; toast.classList.add('show');
@@ -150,9 +165,17 @@ function showToast(msg) {
 function playActive(card) {
  document.querySelectorAll('.video-card').forEach(other => {
    const vid=other.querySelector('video');
-   if(other===card) { vid.play().then(()=>other.classList.remove('is-paused')).catch(()=>{}); state[+other.dataset.index].playing=true; }
-   else { vid.pause(); state[+other.dataset.index].playing=false; }
+   if (other === card) {
+     if (vid) { vid.play().then(()=>other.classList.remove('is-paused')).catch(()=>{}); state[+other.dataset.index].playing=true; }
+     // Cross-origin embedded players cannot be controlled reliably by this page.
+   } else {
+     if (vid) vid.pause();
+     state[+other.dataset.index].playing=false;
+   }
  });
+ // Warm up the next local video only when the current card is active.
+ const next = document.querySelector(`.video-card[data-index="${+card.dataset.index + 1}"] video`);
+ if (next && next.preload === 'none') { next.preload = 'metadata'; next.load(); }
 }
 const observer = new IntersectionObserver(entries => {
  entries.forEach(entry => { if(entry.isIntersecting && entry.intersectionRatio>=.65) playActive(entry.target); });
@@ -160,7 +183,7 @@ const observer = new IntersectionObserver(entries => {
 document.querySelectorAll('.video-card').forEach(c=>observer.observe(c));
 document.querySelectorAll('.video-card').forEach(card => {
  const video=card.querySelector('video');
- video.addEventListener('click',()=> {
+ if (video) video.addEventListener('click',()=> {
    if(video.paused) { video.play().catch(()=>{}); card.classList.remove('is-paused'); state[+card.dataset.index].playing=true; }
    else { video.pause(); card.classList.add('is-paused'); state[+card.dataset.index].playing=false; }
  });
